@@ -1,6 +1,7 @@
 import os
-import requests
 import re
+import json
+import requests
 from bs4 import BeautifulSoup
 import yfinance as yf
 import pandas as pd
@@ -9,35 +10,28 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+from bsedata.bse import BSE
+
+b = BSE()
+b.updateScripCodes()
+
+NSE_DICT = pd.read_csv("nse_list.csv").set_index('Symbol')['Company Name'].to_dict()
+with open("bse_list.json", 'r') as file:
+    BSE_DICT = json.load(file)
+ALL_DICT = NSE_DICT | BSE_DICT
+
 SCRAPE_URL = "https://economictimes.indiatimes.com/markets/stocks/recos"
-NSE_DF = pd.read_csv("nse_list.csv")
-SEARCH_CHOICES = NSE_DF['Company Name']
+
+SEARCH_CHOICES = ALL_DICT.values()
+
 SENDER_EMAIL = os.getenv("ETRECO_SENDER_EMAIL")
 SENDER_PASSWORD = os.getenv("ETRECO_SENDER_PWD")
 RECEIVER_EMAIL = os.getenv("ETRECO_RECEIVER_EMAIL")
+
 SMTP_URL = 'smtp.gmail.com'
 SMTP_PORT = 587
 
 FINAL_DATA = list()
-
-# Example Data
-# FINAL_DATA = [
-#     ('BUY', 'Godrej Consumer Products', 'GODREJCP', 1650, 18.45364570434647),
-#     ('BUY', 'Bajaj Consumer Care', 'BAJAJCON', 300, 13.860629835622287),
-#     ('BUY', 'PDS', 'PDSL', 780, 48.968685326453006),
-#     ('BUY', 'SBI Cards and Payment Services', 'SBICARD', 855, 17.388622044255037),
-#     ('BUY', 'Andhra Sugars', 'ANDHRSUGAR', 140, 11.758604415791599),
-#     ('BUY', 'Hindustan Petroleum Corporation', 'HINDPETRO', 600, 11.877682949271625),
-#     ('BUY', 'Indian Oil Corporation', 'IOC', 195, 14.463488671853902),
-#     ('BUY', 'GMR Airports Infrastructure', 'GMRINFRA', 112, 19.25042821927231),
-#     ('BUY', 'Varun Beverages', 'VBL', 1900, 15.90666463321641),
-#     ('BUY', 'Hindustan Zinc', 'HINDZINC', 890, 34.461394043286184),
-#     ('BUY', 'Trent', 'TRENT', 5500, 4.85078218273935),
-#     ('BUY', 'Mankind Pharma', 'MANKIND', 2650, 18.271886302781),
-#     ('BUY', 'Mold-Tek Packaging', 'MOLDTKPAC', 957, 18.97806042734855),
-#     ('BUY', 'India Shelter Finance Corporation', 'INDIASHLTR', 800, 14.351061737812989),
-#     ('BUY', 'Tata Motors', 'TATAMOTORS', 1200, 20.797258959984063)
-# ]
 
 
 def scrape():
@@ -53,7 +47,7 @@ def scrape():
                 a_text = section.find("a").text.strip()
                 match = pattern.match(a_text)
                 if match.group(1) == "Buy":
-                    print(match.group(1), " ", match.group(4), "; TP : ", match.group(5))
+                    # print(match.group(1), " ", match.group(4), "; TP : ", match.group(5))
                     recommendations[match.group(4)] = int(match.group(5))
             except AttributeError:
                 continue
@@ -62,13 +56,16 @@ def scrape():
     return recommendations
 
 def get_ltp(symbol):
-    return yf.Ticker(symbol+".NS").history(period="1d")['Close'].iloc[-1]
+    df = yf.Ticker(symbol+".NS").history(period="1mo")
+    if df.shape[0] == 0: # Not present in NSE
+        df = yf.Ticker(symbol+".BO").history(period="1mo") # Check BSE
+    return df['Close'].iloc[-1]
 
 def get_symbol_of(company_name):
-    matches = process.extract(company_name, SEARCH_CHOICES, limit=1)
-    for match in matches:
-        row_index = NSE_DF[NSE_DF['Company Name'] == match[0]].index[0]
-        return NSE_DF.iloc[row_index]["Symbol"]
+    match = process.extract(company_name, SEARCH_CHOICES, limit=1)[0]
+    for symbol, name in ALL_DICT.items():
+        if name == match[0]:
+            return symbol
     
 def get_pct_change(recs):
     pct_changes = {} # Key=Stock Symbol, Value=Possible Pct Change
@@ -76,8 +73,9 @@ def get_pct_change(recs):
         symbol = get_symbol_of(company_name=company_name)
         ltp = get_ltp(symbol=symbol)
         pct_change = ((tp - ltp) / ltp) * 100
-        pct_changes[symbol] = pct_change
+        pct_changes[company_name] = pct_change
         FINAL_DATA.append(tuple(["BUY", company_name, symbol, tp, pct_change]))
+        print("Buy ", company_name, "\t\tLTP:",ltp,"\t\tTP:",tp, "\t\tupside:", pct_change)
     return pct_changes
 
 def send_email():
