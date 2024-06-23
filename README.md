@@ -30,6 +30,15 @@ Install dependencies
 Run the Script
 
 ```bash
-  python recommend.py
+  python src/recommend.py
 ```
 
+Docker Run Command to run Grafana 
+
+```bash
+  docker run -d -p 3000:3000 --name=grafana \
+    -e GF_PLUGIN_ALLOW_LOCAL_MODE=true \
+    --user "$(id -u)" \
+    --volume "$PWD/data:/var/lib/grafana" \
+    grafana/grafana-oss
+```
