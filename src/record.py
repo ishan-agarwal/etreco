@@ -23,7 +23,7 @@ class Record:
         self.df.set_index(["DateInserted", "Symbol"], inplace=True, drop=False)
 
     def add_row(self, Symbol, CompanyName, StockExchange, TP, LTP):
-        DateInserted = datetime.today().strftime("%Y-%m-%d")
+        DateInserted = datetime.today().strftime("%Y-%m-%d %H:%M:%S")
         new_row = pd.DataFrame(
             {
                 "DateInserted": [DateInserted],
