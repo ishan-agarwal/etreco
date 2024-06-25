@@ -4,13 +4,13 @@ import requests
 from bs4 import BeautifulSoup
 import yfinance as yf
 import pandas as pd
-from fuzzywuzzy import process
-from bsedata.bse import BSE
+from thefuzz import process
+# from bsedata.bse import BSE
 
 from record import Record
 
-b = BSE()
-b.updateScripCodes()
+# b = BSE()
+# b.updateScripCodes()
 
 RECORDER = Record("data/recommendation_data.csv")
 SCRAPE_URL = "https://economictimes.indiatimes.com/markets/stocks/recos"
@@ -18,7 +18,7 @@ NSE_DICT = pd.read_csv("etc/nse_list.csv").set_index("Symbol")["Company Name"].t
 with open("etc/bse_list.json", "r") as file:
     BSE_DICT = json.load(file)
 ALL_DICT = NSE_DICT | BSE_DICT
-SEARCH_CHOICES = ALL_DICT.values()
+# SEARCH_CHOICES = ALL_DICT.values()
 FINAL_DATA = list()
 
 
@@ -45,16 +45,30 @@ def scrape():
 
 
 def get_ltp(symbol):
+    print(symbol)
     df = yf.Ticker(symbol + ".NS").history(period="1mo")
     if df.shape[0] == 0:  # Not present in NSE
         df = yf.Ticker(symbol + ".BO").history(period="1mo")  # Check BSE
+        # if df.shape[0] == 0: # Not present in BSE
+        #     return 00.00
     return round(df["Close"].iloc[-1],2)
 
 
 def get_symbol_of(company_name):
-    match = process.extract(company_name, SEARCH_CHOICES, limit=1)[0]
+    match = process.extract(company_name, NSE_DICT.values(), limit=1)[0][0]
+    if match.split(" ")[0] == company_name.split(" ")[0]:
+        found = match
+    else:
+        match = process.extract(company_name, BSE_DICT.values(), limit=1)[0][0]
+        if match.split(" ")[0] == company_name.split(" ")[0]:
+            found = match
+            print("not found on nse, but found on bse - ", company_name)
+        else:
+            print(company_name, " not found in records")
+            return -1 # Not Found
+    print("found - ", found)
     for symbol, name in ALL_DICT.items():
-        if name == match[0]:
+        if name == found:
             return symbol
 
 
@@ -62,6 +76,9 @@ def get_pct_change(recs):
     pct_changes = {}  # Key=Stock Symbol, Value=Possible Pct Change
     for company_name, tp in recs.items():
         symbol = get_symbol_of(company_name=company_name)
+        if symbol == -1:
+            continue
+        print("getting ltp for ", company_name)
         ltp = get_ltp(symbol=symbol)
         pct_change = ((tp - ltp) / ltp) * 100
         pct_changes[company_name] = pct_change
