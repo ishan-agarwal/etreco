@@ -1,6 +1,5 @@
 # import pandas as pds
 import os
-from datetime import datetime
 import mysql.connector
 
 
@@ -14,10 +13,8 @@ class Record:
             "database": os.environ.get("DB_NAME"),
         }
         self.columns = [
-            "DateInserted",
             "Symbol",
             "CompanyName",
-            "StockExchange",
             "TP",
         ]
         self.conn = mysql.connector.connect(**self.db_config)
@@ -27,32 +24,29 @@ class Record:
     def create_table(self):
         create_table_query = """
         CREATE TABLE IF NOT EXISTS records (
-            DateInserted DATETIME,
             Symbol VARCHAR(255),
             CompanyName VARCHAR(255),
-            StockExchange VARCHAR(255),
             TP FLOAT,
-            PRIMARY KEY (DateInserted, Symbol)
+            PRIMARY KEY (Symbol)
         )
         """
         self.cursor.execute(create_table_query)
         self.conn.commit()
 
-    def add_row(self, Symbol, CompanyName, StockExchange, TP):
-        DateInserted = datetime.today().strftime("%Y-%m-%d %H:%M:%S")
+    def add_row(self, Symbol, CompanyName, TP):
         insert_query = """
-        INSERT INTO records (DateInserted, Symbol, CompanyName, StockExchange, TP)
-        VALUES (%s, %s, %s, %s, %s)
-        """
+            INSERT INTO records (Symbol, CompanyName, TP)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+            TP = VALUES(TP)
+            """
         try:
             self.cursor.execute(
-                insert_query, (DateInserted, Symbol, CompanyName, StockExchange, TP)
+                insert_query, (Symbol, CompanyName, TP)
             )
             self.conn.commit()
-        except mysql.connector.errors.IntegrityError:
-            print(
-                "Row with this DateInserted and Symbol already exists. Update the row if necessary."
-            )
+        except mysql.connector.Error as err:
+            print(f"Error: {err}")
 
     def close_conn(self):
         self.cursor.close()

@@ -25,3 +25,9 @@ services:
       DB_USER: admin
       DB_PASSWORD: admin
       DB_PORT: 3307
+
+  yfinance_api:
+    build: ./yfinance_api
+    container_name: yfapi
+    ports:
+      - "5000:5000"

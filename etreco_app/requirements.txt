@@ -1,15 +1,20 @@
 beautifulsoup4==4.12.3
 black==24.4.2
+blinker==1.8.2
 bsedata==0.6.0
 certifi==2024.6.2
 charset-normalizer==3.3.2
 click==8.1.7
+Flask==3.0.3
 frozendict==2.4.4
 fuzzywuzzy==0.18.0
 html5lib==1.1
 idna==3.7
+itsdangerous==2.2.0
+Jinja2==3.1.4
 Levenshtein==0.25.1
 lxml==5.2.2
+MarkupSafe==2.1.5
 multitasking==0.0.11
 mypy-extensions==1.0.0
 mysql-connector-python==8.4.0
@@ -31,5 +36,6 @@ thefuzz==0.22.1
 tzdata==2024.1
 urllib3==2.2.1
 webencodings==0.5.1
+Werkzeug==3.0.3
 wheel==0.43.0
 yfinance==0.2.40
