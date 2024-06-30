@@ -24,6 +24,7 @@ python-Levenshtein==0.25.1
 pytz==2024.1
 rapidfuzz==3.9.3
 requests==2.32.3
+schedule==1.2.2
 six==1.16.0
 soupsieve==2.5
 thefuzz==0.22.1

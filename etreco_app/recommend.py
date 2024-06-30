@@ -2,6 +2,7 @@ import time
 import re
 import json
 import requests
+import schedule
 from bs4 import BeautifulSoup
 import yfinance as yf
 import pandas as pd
@@ -48,14 +49,12 @@ def scrape():
     return recommendations
 
 
-def get_ltp(symbol):
-    print(symbol)
-    df = yf.Ticker(symbol + ".NS").history(period="1mo")
-    if df.shape[0] == 0:  # Not present in NSE
-        df = yf.Ticker(symbol + ".BO").history(period="1mo")  # Check BSE
-        # if df.shape[0] == 0: # Not present in BSE
-        #     return 00.00
-    return round(df["Close"].iloc[-1], 2)
+# def get_ltp(symbol):
+#     print(symbol)
+#     df = yf.Ticker(symbol + ".NS").history(period="1mo")
+#     if df.shape[0] == 0:  # Not present in NSE
+#         df = yf.Ticker(symbol + ".BO").history(period="1mo")  # Check BSE
+#     return round(df["Close"].iloc[-1], 2)
 
 
 def get_symbol_of(company_name):
@@ -77,24 +76,24 @@ def get_symbol_of(company_name):
 
 
 def get_pct_change(recs):
-    # pct_changes = {}  # Key=Stock Symbol, Value=Possible Pct Change
     for company_name, tp in recs.items():
         symbol = get_symbol_of(company_name=company_name)
         if symbol == -1:
             continue
         print("getting ltp for ", company_name)
-        # ltp = get_ltp(symbol=symbol)
-        # pct_change = ((tp - ltp) / ltp) * 100
-        # pct_changes[company_name] = pct_change
-        # FINAL_DATA.append(tuple(["BUY", company_name, symbol, tp]))
-        RECORDER.add_row(symbol, company_name, "NSE" if symbol.isalpha() else "BSE", TP=tp)
-    # return pct_changes
+        RECORDER.add_row(
+            symbol, company_name, "NSE" if symbol.isalpha() else "BSE", TP=tp
+        )
 
 
-if __name__ == "__main__":
-    interval = 6 * 60 * 60  # 6 hours
-    while True:
-        recs = scrape()
-        get_pct_change(recs=recs)
-        RECORDER.close_conn()
-        time.sleep(interval)
+def collect_recos():
+    recs = scrape()
+    get_pct_change(recs=recs)
+    RECORDER.close_conn()
+
+
+schedule.every().day.at("10:30").do(collect_recos)
+
+while True:
+    schedule.run_pending()
+    time.sleep(1)

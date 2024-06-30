@@ -7,11 +7,11 @@ import mysql.connector
 class Record:
     def __init__(self):
         self.db_config = {
-            'user': os.environ.get('DB_USER'),
-            'password': os.environ.get('DB_PASSWORD'),
-            'host': os.environ.get('DB_HOST'),
-            'port': os.environ.get('DB_PORT'),
-            'database': os.environ.get('DB_NAME'),
+            "user": os.environ.get("DB_USER"),
+            "password": os.environ.get("DB_PASSWORD"),
+            "host": os.environ.get("DB_HOST"),
+            "port": os.environ.get("DB_PORT"),
+            "database": os.environ.get("DB_NAME"),
         }
         self.columns = [
             "DateInserted",
