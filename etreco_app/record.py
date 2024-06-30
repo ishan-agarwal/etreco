@@ -41,9 +41,7 @@ class Record:
             TP = VALUES(TP)
             """
         try:
-            self.cursor.execute(
-                insert_query, (Symbol, CompanyName, TP)
-            )
+            self.cursor.execute(insert_query, (Symbol, CompanyName, TP))
             self.conn.commit()
         except mysql.connector.Error as err:
             print(f"Error: {err}")

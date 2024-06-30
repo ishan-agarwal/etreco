@@ -12,7 +12,7 @@ from thefuzz import process
 from record import Record
 
 
-time.sleep(20) # wait for mysql container to be up
+time.sleep(20)  # wait for mysql container to be up
 RECORDER = Record()
 SCRAPE_URL = "https://economictimes.indiatimes.com/markets/stocks/recos"
 NSE_DICT = pd.read_csv("etc/nse_list.csv").set_index("Symbol")["Company Name"].to_dict()
@@ -70,7 +70,7 @@ def get_pct_change(recs):
             continue
         print("getting ltp for ", company_name)
         RECORDER.add_row(
-            symbol+".NS" if symbol.isalpha() else symbol+".BO", company_name, TP=tp
+            symbol + ".NS" if symbol.isalpha() else symbol + ".BO", company_name, TP=tp
         )
 
 
@@ -80,10 +80,9 @@ def collect_recos():
     RECORDER.close_conn()
 
 
-collect_recos()
-# schedule.every().day.at("22:40").do(collect_recos)
+# collect_recos()
+schedule.every().day.at("10:00").do(collect_recos)
 
-
-# while True:
-#     schedule.run_pending()
-#     time.sleep(1)
+while True:
+    schedule.run_pending()
+    time.sleep(1)
