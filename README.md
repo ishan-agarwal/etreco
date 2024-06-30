@@ -33,14 +33,10 @@ Run the Script
 python src/recommend.py
 ```
 
-Docker Run Command to run Grafana 
+Docker Command to run Grafana 
 
 ```bash
-docker run -d -p 3000:3000 --name=grafana \
-  -e GF_PLUGIN_ALLOW_LOCAL_MODE=true \
-  --user "$(id -u)" \
-  --volume "$PWD/data:/var/lib/grafana" \
-  grafana/grafana-oss
+docker compose -f docker-compose-grafana.yaml up
 ```
 
 Setting up a Daily Cron job 

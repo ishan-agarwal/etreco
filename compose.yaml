@@ -1,0 +1,27 @@
+volumes:
+  mysql_data:
+services:
+  mysql:
+    image: mysql:latest
+    container_name: mysql_container
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: ETRECODB
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: admin
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  python_app:
+    build: ./etreco_app
+    container_name: python_app
+    depends_on:
+      - mysql
+    environment:
+      DB_HOST: 192.168.0.125
+      DB_NAME: ETRECODB
+      DB_USER: admin
+      DB_PASSWORD: admin
+      DB_PORT: 3307
