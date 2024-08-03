@@ -47,7 +47,6 @@ def get_last_close_price():
             jsonify({"error": "Please provide both ticker and duration parameters"}),
             400,
         )
-
     try:
         stock = yf.Ticker(ticker)
         data = stock.history(period="5d",interval="1d",auto_adjust=False, back_adjust=False)

@@ -21,6 +21,18 @@ with open("etc/bse_list.json", "r") as file:
 ALL_DICT = NSE_DICT | BSE_DICT
 
 
+
+def get_last_close_price(symbol):
+    url = f"http://192.168.0.125:5000/last_close_price?ticker={symbol}"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
+        data = response.json()
+        return round(data.get(symbol, 0), 2)
+    except (requests.exceptions.RequestException, ValueError, KeyError):
+        return 0
+
+
 def scrape():
     url = SCRAPE_URL
     pattern = re.compile(r"((Buy)|(Sell)) (.*), target price Rs (\d*)(\.)*:(.*)")
@@ -33,7 +45,6 @@ def scrape():
             try:
                 a_text = section.find("a").text.strip()
                 match = pattern.match(a_text)
-                print(a_text)
                 if match.group(1) == "Buy":
                     # print(match.group(1), " ", match.group(4), "; TP : ", match.group(5))
                     recommendations[match.group(4)] = int(match.group(5))
@@ -68,20 +79,21 @@ def get_pct_change(recs):
         symbol = get_symbol_of(company_name=company_name)
         if symbol == -1:
             continue
+        symbol = symbol + ".NS" if symbol.isalpha() else symbol + ".BO"
         print("getting ltp for ", company_name)
+        ltp = get_last_close_price(symbol)
         RECORDER.add_row(
-            symbol + ".NS" if symbol.isalpha() else symbol + ".BO", company_name, TP=tp
+           symbol , company_name, TP=tp, LTP=ltp
         )
 
 
 def collect_recos():
     recs = scrape()
     get_pct_change(recs=recs)
-    RECORDER.close_conn()
+    # RECORDER.close_conn()
 
 
-# collect_recos()
-schedule.every().day.at("10:00").do(collect_recos)
+schedule.every().day.at("07:00").do(collect_recos)
 
 while True:
     schedule.run_pending()
