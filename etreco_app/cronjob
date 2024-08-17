@@ -1,0 +1,2 @@
+# Run recommend.py every day at 12 AM
+0 0 * * * python /app/recommend.py > /app/stdout 2> /app/stderr

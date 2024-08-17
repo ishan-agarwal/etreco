@@ -11,11 +11,20 @@ COPY . /app
 RUN pip install -U pip wheel
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Make port 5000 available to the world outside this container
-# EXPOSE 5000
+# Install cron
+RUN apt-get update && apt-get install -y cron
 
-# Define environment variable
-# ENV NAME World
+# Copy the cron job file into the cron.d directory
+COPY cronjob /etc/cron.d/my-cron-job
 
-# Run app.py when the container launches
-CMD ["python", "recommend.py", ">stdout", "2>stderr"]
+# Give execution rights on the cron job
+RUN chmod 0644 /etc/cron.d/my-cron-job
+
+# Apply the cron job
+RUN crontab /etc/cron.d/my-cron-job
+
+# Create the log file to be able to run tail
+RUN touch /var/log/cron.log
+
+# Run the command on container startup
+CMD cron && tail -f /var/log/cron.log

@@ -3,7 +3,6 @@ from datetime import datetime
 import re
 import json
 import requests
-import schedule
 from bs4 import BeautifulSoup
 
 import pandas as pd
