@@ -24,23 +24,20 @@ class Record:
             Recommender VARCHAR(255),
             DateOfRecommendation DATE,
             TP FLOAT,
-            LTP FLOAT,
-            PRIMARY KEY (Symbol)
+            PriceAtRecoDate FLOAT
         )
         """
         self.cursor.execute(create_table_query)
         self.conn.commit()
 
-    def add_row(self, Symbol, CompanyName, Recommender, Date, TP, LTP):
+    def add_row(self, Symbol, CompanyName, Recommender, Date, TP, PriceAtRecoDate):
         insert_query = """
-            INSERT INTO recos (Symbol, CompanyName, Recommender, DateOfRecommendation, TP, LTP)
+            INSERT INTO recos (Symbol, CompanyName, Recommender, DateOfRecommendation, TP, PriceAtRecoDate)
             VALUES (%s, %s, %s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-            LTP = VALUES(LTP)
             """
         try:
             self.cursor.execute(
-                insert_query, (Symbol, CompanyName, Recommender, Date, TP, LTP)
+                insert_query, (Symbol, CompanyName, Recommender, Date, TP, PriceAtRecoDate)
             )
             self.conn.commit()
         except mysql.connector.Error as err:

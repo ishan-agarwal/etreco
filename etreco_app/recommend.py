@@ -17,7 +17,7 @@ time.sleep(20)  # wait for mysql container to be up
 RECORDER = Record()
 
 SCRAPE_URL = "https://economictimes.indiatimes.com/markets/stocks/recos"
-LAST_CLOSE_PRICE_URL = "http://192.168.0.125:5000/last_close_price"
+CLOSE_PRICE_ON_DATE_URL = "http://192.168.0.125:5000/close_price_on_date"
 
 NSE_DICT = pd.read_csv("etc/nse_list.csv").set_index("Symbol")["Company Name"].to_dict()
 with open("etc/bse_list.json", "r") as file:
@@ -43,13 +43,13 @@ def get_symbol_of(company_name):
             return symbol
 
 
-def get_last_close_price(symbol):
+def get_close_price_on_date(symbol, date):
     try:
-        params = {"ticker": symbol}
-        response = requests.get(LAST_CLOSE_PRICE_URL, params=params)
+        params = {"ticker": symbol, "date": str(date)}
+        response = requests.get(CLOSE_PRICE_ON_DATE_URL, params=params)
         response.raise_for_status()
         data = response.json()
-        return round(data.get(symbol, 0), 2)
+        return round(data.get("close_price", 0), 2)
     except (requests.exceptions.RequestException, ValueError, KeyError):
         return 0
 
@@ -62,45 +62,56 @@ def get_date(date_str):
     return date_obj.date()
 
 
-def main():
-    url = SCRAPE_URL
-    pattern = re.compile(r"((Buy)|(Sell)) (.*), target price Rs (\d*)(\.)*:(.*)")
-    response = requests.get(url)
+def scrape():
+    response = requests.get(SCRAPE_URL)
     if response.status_code == 200:
         soup = BeautifulSoup(response.content, "html.parser")
         reco_sections = soup.find_all("div", class_="eachStory")
-        for section in reco_sections:
-            try:
-                a_text = section.find("a").text.strip()
-                match = pattern.match(a_text)
-                side = match.group(1)
-                company_name = match.group(4)
-                target_price = match.group(5)
-                recommender = match.group(7)
-                time_text = section.find("time").text.strip()
-                if side != "Buy":
-                    continue
-                symbol = get_symbol_of(company_name)
-                if symbol == -1:
-                    continue
-                else:
-                    symbol = symbol + ".NS" if symbol.isalpha() else symbol + ".BO"
-                ltp = get_last_close_price(symbol)
-                RECORDER.add_row(
-                    symbol,
-                    company_name,
-                    recommender.strip(),
-                    get_date(time_text),
-                    TP=target_price,
-                    LTP=ltp,
-                )
-            except:
-                print("Error in Main Function")
-                continue
+        return reco_sections
     else:
         print("Failed to retrieve the webpage")
-    return
+    
+    # Load from local HTML file     
+    # with open("etc/old_data.html","r") as file:
+    #     html_content = file.read()
+    # soup = BeautifulSoup(html_content, "html.parser")
+    # reco_sections = soup.find_all("div", class_="eachStory")
+    # return reco_sections
 
+def parse(reco_sections):
+    pattern = re.compile(r"((Buy)|(Sell)) (.*), target price Rs (\d*)(\.)*:(.*)")
+    for section in reco_sections:
+        try:
+            a_text = section.find("a").text.strip()
+            match = pattern.match(a_text)
+            side = match.group(1)
+            company_name = match.group(4)
+            target_price = match.group(5)
+            recommender = match.group(7)
+            date_of_recommendation = get_date(section.find("time").text.strip())
+            if side != "Buy":
+                continue
+            symbol = get_symbol_of(company_name)
+            if symbol == -1:
+                continue
+            else:
+                symbol = symbol + ".NS" if symbol.isalpha() else symbol + ".BO"
+            price_at_reco_date = get_close_price_on_date(symbol, date_of_recommendation)
+            RECORDER.add_row(
+                symbol,
+                company_name,
+                recommender.strip(),
+                date_of_recommendation,
+                TP=target_price,
+                PriceAtRecoDate=price_at_reco_date,
+            )
+        except:
+            print("Error in Main Function")
+            continue
+
+def main():
+    reco_sections = scrape()
+    parse(reco_sections)
 
 main()
 
