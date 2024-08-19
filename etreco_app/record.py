@@ -24,7 +24,8 @@ class Record:
             Recommender VARCHAR(255),
             DateOfRecommendation DATE,
             TP FLOAT,
-            PriceAtRecoDate FLOAT
+            PriceAtRecoDate FLOAT,
+            PRIMARY KEY (CompanyName, TP)
         )
         """
         self.cursor.execute(create_table_query)
@@ -37,7 +38,8 @@ class Record:
             """
         try:
             self.cursor.execute(
-                insert_query, (Symbol, CompanyName, Recommender, Date, TP, PriceAtRecoDate)
+                insert_query,
+                (Symbol, CompanyName, Recommender, Date, TP, PriceAtRecoDate),
             )
             self.conn.commit()
         except mysql.connector.Error as err:

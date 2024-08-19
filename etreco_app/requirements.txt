@@ -5,6 +5,7 @@ bsedata==0.6.0
 certifi==2024.6.2
 charset-normalizer==3.3.2
 click==8.1.7
+dateutils==0.6.12
 Flask==3.0.3
 frozendict==2.4.4
 fuzzywuzzy==0.18.0
@@ -13,7 +14,6 @@ idna==3.7
 itsdangerous==2.2.0
 Jinja2==3.1.4
 Levenshtein==0.25.1
-lxml==5.2.2
 MarkupSafe==2.1.5
 multitasking==0.0.11
 mypy-extensions==1.0.0
