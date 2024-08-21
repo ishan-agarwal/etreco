@@ -1,6 +1,7 @@
 import time
 from datetime import datetime
 import dateutil.parser
+import schedule
 import re
 import json
 import requests
@@ -8,20 +9,9 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from thefuzz import process
 
-
+from setup_logger import setup_logger
 from record import Record
 
-
-time.sleep(20)  # wait for mysql container to be up
-RECORDER = Record()
-
-SCRAPE_URL = "https://economictimes.indiatimes.com/markets/stocks/recos"
-CLOSE_PRICE_ON_DATE_URL = "http://192.168.0.125:5000/close_price_on_date"
-
-NSE_DICT = pd.read_csv("etc/nse_list.csv").set_index("Symbol")["Company Name"].to_dict()
-with open("etc/bse_list.json", "r") as file:
-    BSE_DICT = json.load(file)
-ALL_DICT = NSE_DICT | BSE_DICT
 
 def get_date(date_str):
     if date_str.lower().endswith("hours ago"):
@@ -33,13 +23,14 @@ def get_date(date_str):
 def get_ticker(company_name):
     closest_match = process.extractOne(company_name, ALL_DICT.values())
     if closest_match:
-        # Find the corresponding ticker by matching the closest company name
         matched_company = closest_match[0]
         matched_ticker = next(
             ticker for ticker, name in ALL_DICT.items() if name == matched_company
         )
+        LOGGER.info(f"Closest match for {company_name} found : {matched_ticker}")
         return matched_ticker
     else:
+        LOGGER.error(f"No closest match ticker found for company name : {company_name}")
         return None
 
 
@@ -49,21 +40,27 @@ def get_close_price_on_date(symbol, date):
         response = requests.get(CLOSE_PRICE_ON_DATE_URL, params=params)
         response.raise_for_status()
         data = response.json()
-        return round(data.get("close_price", 0), 2)
+        lcp = round(data.get("close_price", 0), 2)
+        LOGGER.info(f"Last close price for {symbol} on date {date} is {lcp}")
+        return lcp
     except (requests.exceptions.RequestException, ValueError, KeyError):
-        return 0
+        LOGGER.error(f"Failed to get last close price for {symbol} on date {date}")
+        return -1
 
 
 def scrape():
+    LOGGER.info("Scraping data from URL "+ SCRAPE_URL)
     response = requests.get(SCRAPE_URL)
     if response.status_code == 200:
         soup = BeautifulSoup(response.content, "html.parser")
         reco_sections = soup.find_all("div", class_="eachStory")
+        LOGGER.info("Found " + str(len(reco_sections))+ " reco sections")
         return reco_sections
     else:
-        print("Failed to retrieve the webpage")
+        LOGGER.error("Failed scraping URL")
 
     # Load from local HTML file
+    # LOGGER.info("Scraping data from file ")
     # with open("etc/old_data.html","r") as file:
     #     html_content = file.read()
     # soup = BeautifulSoup(html_content, "html.parser")
@@ -75,15 +72,19 @@ def parse(reco_sections):
     pattern = re.compile(r"(\w+) (.*), target price Rs (.*)(\.)*:(.*)")
     for section in reco_sections:
         a_text = section.find("a").text.strip()
+        LOGGER.info(f"a_text in reco section is {a_text}")
         match = pattern.match(a_text)
         if not match:
+            LOGGER.info("Could match regex pattern on a_text")
             continue
         side = match.group(1)
         company_name = match.group(2)
         target_price = match.group(3).replace(",", "")
-        recommender = match.group(5)
+        recommender = match.group(5).strip()
         date_of_recommendation = get_date(section.find("time").text.strip())
+        LOGGER.info(f"Parsed a_text, side:{side}, company_name:{company_name}, target_prce:{target_price}, recommender:{recommender}, date_of_recommendation:{date_of_recommendation}")
         if side != "Buy":
+            LOGGER.info("Side not \"Buy\", ignoring reco")
             continue
         symbol = get_ticker(company_name)
         if symbol:
@@ -91,10 +92,11 @@ def parse(reco_sections):
         else:
             continue
         price_at_reco_date = get_close_price_on_date(symbol, date_of_recommendation)
+        LOGGER.info(f"Adding row, symbol:{symbol}, company_name:{company_name}, recommender:{recommender}, date_of_recommendation:{date_of_recommendation}, target_prce:{target_price}, price_at_reco_date:{price_at_reco_date}")
         RECORDER.add_row(
             symbol,
             company_name,
-            recommender.strip(),
+            recommender,
             date_of_recommendation,
             TP=target_price,
             PriceAtRecoDate=price_at_reco_date,
@@ -102,10 +104,32 @@ def parse(reco_sections):
 
 
 def main():
+    LOGGER.info("Start of RUN")
     reco_sections = scrape()
     parse(reco_sections)
-    RECORDER.close_conn()
-
+    LOGGER.info("End of RUN")
 
 if __name__ == "__main__":
-    main()
+    LOGGER = setup_logger()
+
+    LOGGER.info("Sleeping for 20 seconds to let MySQL get ready")
+    time.sleep(20)  # wait for mysql container to be up
+
+    LOGGER.info("Initializing MySQL connection")
+    RECORDER = Record()
+
+    SCRAPE_URL = "https://economictimes.indiatimes.com/markets/stocks/recos"
+    CLOSE_PRICE_ON_DATE_URL = "http://192.168.0.125:5000/close_price_on_date"
+
+
+    LOGGER.info("Building ALL_DICT , dictionary of tickers to company names from NSE, BSE")
+    NSE_DICT = pd.read_csv("etc/nse_list.csv").set_index("Symbol")["Company Name"].to_dict()
+    with open("etc/bse_list.json", "r") as file:
+        BSE_DICT = json.load(file)
+    ALL_DICT = NSE_DICT | BSE_DICT    
+    
+    LOGGER.info("Setting main function on a schedule to run daily on 06:10 UTC")
+    schedule.every().day.at("06:10").do(main)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)        # sleep for 1 hour
