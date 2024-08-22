@@ -20,12 +20,12 @@ def get_price_data():
 
     try:
         stock = yf.Ticker(ticker)
-        data = stock.history(period=duration,interval=interval,auto_adjust=False, back_adjust=False)
+        data = stock.history(period=duration,interval=interval)
 
         price_data = []
         for index, row in data.iterrows():
             entry = {
-                "created_at": index.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "date": index.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "open": row["Open"],
                 "high": row["High"],
                 "low": row["Low"],
@@ -50,7 +50,7 @@ def get_last_close_price():
         )
     try:
         stock = yf.Ticker(ticker)
-        data = stock.history(period="5d",interval="1d",auto_adjust=False, back_adjust=False)
+        data = stock.history(period="5d",interval="1d")
         last_close=dict()
         last_close[ticker] = data.iloc[-1]["Close"]
         return jsonify(last_close)
@@ -79,7 +79,7 @@ def get_close_price_on_date():
         end_date = (target_date + timedelta(days=5)).strftime("%Y-%m-%d")
 
         stock = yf.Ticker(ticker)
-        data = stock.history(start=start_date, end=end_date, interval="1d", auto_adjust=False, back_adjust=False)
+        data = stock.history(start=start_date, end=end_date, interval="1d")
 
         # Find the closest previous trading day if the target date is not a trading day
         closest_date = None
