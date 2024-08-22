@@ -1,7 +1,7 @@
 
 # ET Reco
 
-Aggregate recommendations from Economic Times
+Aggregate, Store and Analyse recommendations from [Economic Times](https://economictimes.indiatimes.com/)
 
 
 
