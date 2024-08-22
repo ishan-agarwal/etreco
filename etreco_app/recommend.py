@@ -8,6 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 from thefuzz import process
+import argparse
 
 from setup_logger import setup_logger
 from record import Record
@@ -110,6 +111,10 @@ def main():
     LOGGER.info("End of RUN")
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--now", action="store_true", help="Scrape now")
+    args = parser.parse_args()
+    
     LOGGER = setup_logger()
 
     LOGGER.info("Sleeping for 20 seconds to let MySQL get ready")
@@ -128,8 +133,12 @@ if __name__ == "__main__":
         BSE_DICT = json.load(file)
     ALL_DICT = NSE_DICT | BSE_DICT    
     
-    LOGGER.info("Setting main function on a schedule to run daily on 06:10 UTC")
-    schedule.every().day.at("06:10").do(main)
-    while True:
-        schedule.run_pending()
-        time.sleep(1)        # sleep for 1 hour
+    if args.now:
+        LOGGER.info("Running Now")
+        main()
+    else:
+        LOGGER.info("Setting main function on a schedule to run daily on 06:10 UTC")
+        schedule.every().day.at("06:10").do(main)
+        while True:
+            schedule.run_pending()
+            time.sleep(1)        # sleep for 1 hour

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
-import yfinance as yf
+import yfinance_cache as yf
 
 app = Flask(__name__)
 
