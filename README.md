@@ -1,7 +1,13 @@
 
 # ET Reco
 
+Aggregate recommendations from Economic Times
 
+
+
+## Screenshots
+
+![ET Reco Dashboard](screenshots/et_reco_dashboard.png?raw=true "ET Reco Dashboard")
 
 
 
