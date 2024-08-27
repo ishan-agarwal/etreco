@@ -3,7 +3,6 @@ from datetime import datetime
 import dateutil.parser
 import schedule
 import re
-import json
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -22,14 +21,18 @@ def get_date(date_str):
 
 
 def get_ticker(company_name):
-    closest_match = process.extractOne(company_name, ALL_DICT.values())
+    closest_match = process.extractOne(company_name, NSE_DICT.values())
     if closest_match:
         matched_company = closest_match[0]
         matched_ticker = next(
-            ticker for ticker, name in ALL_DICT.items() if name == matched_company
+            ticker for ticker, name in NSE_DICT.items() if name == matched_company
         )
-        LOGGER.info(f"Closest match for {company_name} found : {matched_ticker}")
-        return matched_ticker
+        if re.split(r'[ .]+', matched_company)[0] == re.split(r'[ .]+', company_name)[0]:       # First word should match
+            LOGGER.info(f"Closest match for {company_name} found : {matched_ticker}")
+            return matched_ticker
+        else:
+            LOGGER.info(f"Not a match for {company_name} - {matched_company}")
+            return None
     else:
         LOGGER.error(f"No closest match ticker found for company name : {company_name}")
         return None
@@ -49,24 +52,25 @@ def get_close_price_on_date(symbol, date):
         return -1
 
 
-def scrape():
-    LOGGER.info("Scraping data from URL "+ SCRAPE_URL)
-    response = requests.get(SCRAPE_URL)
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.content, "html.parser")
+def scrape(old):
+    if not old:
+        LOGGER.info("Scraping data from URL "+ SCRAPE_URL)
+        response = requests.get(SCRAPE_URL)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.content, "html.parser")
+            reco_sections = soup.find_all("div", class_="eachStory")
+            LOGGER.info("Found " + str(len(reco_sections))+ " reco sections")
+            return reco_sections
+        else:
+            LOGGER.error("Failed scraping URL")
+    if old:
+        # Load from local HTML file
+        LOGGER.info("Scraping data from file ")
+        with open("etc/old_data.html","r") as file:
+            html_content = file.read()
+        soup = BeautifulSoup(html_content, "html.parser")
         reco_sections = soup.find_all("div", class_="eachStory")
-        LOGGER.info("Found " + str(len(reco_sections))+ " reco sections")
         return reco_sections
-    else:
-        LOGGER.error("Failed scraping URL")
-
-    # Load from local HTML file
-    # LOGGER.info("Scraping data from file ")
-    # with open("etc/old_data.html","r") as file:
-    #     html_content = file.read()
-    # soup = BeautifulSoup(html_content, "html.parser")
-    # reco_sections = soup.find_all("div", class_="eachStory")
-    # return reco_sections
 
 
 def parse(reco_sections):
@@ -106,19 +110,20 @@ def parse(reco_sections):
 
 def main():
     LOGGER.info("Start of RUN")
-    reco_sections = scrape()
+    reco_sections = scrape(args.old)
     parse(reco_sections)
     LOGGER.info("End of RUN")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--now", action="store_true", help="Scrape now")
+    parser.add_argument("--old", action="store_true", help="Scrape old data")
     args = parser.parse_args()
     
     LOGGER = setup_logger()
 
-    LOGGER.info("Sleeping for 20 seconds to let MySQL get ready")
-    time.sleep(20)  # wait for mysql container to be up
+    LOGGER.info("Sleeping for 10 seconds to let MySQL get ready")
+    time.sleep(10)  # wait for mysql container to be up
 
     LOGGER.info("Initializing MySQL connection")
     RECORDER = Record()
@@ -126,12 +131,8 @@ if __name__ == "__main__":
     SCRAPE_URL = "https://economictimes.indiatimes.com/markets/stocks/recos"
     CLOSE_PRICE_ON_DATE_URL = "http://192.168.0.125:5000/close_price_on_date"
 
-
     LOGGER.info("Building ALL_DICT , dictionary of tickers to company names from NSE, BSE")
     NSE_DICT = pd.read_csv("etc/nse_list.csv").set_index("Symbol")["Company Name"].to_dict()
-    with open("etc/bse_list.json", "r") as file:
-        BSE_DICT = json.load(file)
-    ALL_DICT = NSE_DICT | BSE_DICT    
     
     if args.now:
         LOGGER.info("Running Now")
