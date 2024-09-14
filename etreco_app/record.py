@@ -42,8 +42,10 @@ class Record:
                 (Symbol, CompanyName, Recommender, Date, TP, PriceAtRecoDate),
             )
             self.conn.commit()
+            return True
         except mysql.connector.Error as err:
             print(f"Error: {err}")
+            return False
 
     def close_conn(self):
         self.cursor.close()

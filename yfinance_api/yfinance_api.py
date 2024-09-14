@@ -39,6 +39,39 @@ def get_price_data():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/price_data_from_date", methods=["GET"])
+def get_price_data_from_date():
+    # Get ticker,duration,interval from query parameters
+    ticker = request.args.get("ticker")
+    fromDate = request.args.get("fromDate")
+    
+    if not ticker or not fromDate:
+        return (
+            jsonify({"error": "Please provide both ticker and fromDate parameters"}),
+            400,
+        )
+
+    try:
+        stock = yf.Ticker(ticker)
+        data = stock.history(start=fromDate, interval="1d")
+
+        price_data = []
+        for index, row in data.iterrows():
+            entry = {
+                "date": index.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "open": row["Open"],
+                "high": row["High"],
+                "low": row["Low"],
+                "close": row["Close"],
+                "volume": row["Volume"],
+            }
+            price_data.append(entry)
+
+        return jsonify(price_data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/last_close_price", methods=["GET"])
 def get_last_close_price():
     # Get ticker,duration,interval from query parameters

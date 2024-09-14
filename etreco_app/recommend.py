@@ -73,7 +73,7 @@ def scrape(old):
         return reco_sections
 
 
-def parse(reco_sections):
+def parse(reco_sections, RECORDER):
     pattern = re.compile(r"(\w+) (.*), target price Rs (.*)(\.)*:(.*)")
     for section in reco_sections:
         a_text = section.find("a").text.strip()
@@ -97,21 +97,22 @@ def parse(reco_sections):
         else:
             continue
         price_at_reco_date = get_close_price_on_date(symbol, date_of_recommendation)
-        LOGGER.info(f"Adding row, symbol:{symbol}, company_name:{company_name}, recommender:{recommender}, date_of_recommendation:{date_of_recommendation}, target_prce:{target_price}, price_at_reco_date:{price_at_reco_date}")
-        RECORDER.add_row(
-            symbol,
-            company_name,
-            recommender,
-            date_of_recommendation,
-            TP=target_price,
-            PriceAtRecoDate=price_at_reco_date,
-        )
+        if RECORDER.add_row(
+                symbol,
+                company_name,
+                recommender,
+                date_of_recommendation,
+                TP=target_price,
+                PriceAtRecoDate=price_at_reco_date,
+            ):
+            LOGGER.info(f"Added row, symbol:{symbol}, company_name:{company_name}, recommender:{recommender}, date_of_recommendation:{date_of_recommendation}, target_prce:{target_price}, price_at_reco_date:{price_at_reco_date}")
 
 
 def main():
+    RECORDER = Record()
     LOGGER.info("Start of RUN")
     reco_sections = scrape(args.old)
-    parse(reco_sections)
+    parse(reco_sections, RECORDER)
     LOGGER.info("End of RUN")
 
 if __name__ == "__main__":
@@ -126,7 +127,6 @@ if __name__ == "__main__":
     time.sleep(10)  # wait for mysql container to be up
 
     LOGGER.info("Initializing MySQL connection")
-    RECORDER = Record()
 
     SCRAPE_URL = "https://economictimes.indiatimes.com/markets/stocks/recos"
     CLOSE_PRICE_ON_DATE_URL = "http://192.168.0.125:5000/close_price_on_date"
@@ -142,4 +142,4 @@ if __name__ == "__main__":
         schedule.every().day.at("06:10").do(main)
         while True:
             schedule.run_pending()
-            time.sleep(1)        # sleep for 1 hour
+            time.sleep(1)
